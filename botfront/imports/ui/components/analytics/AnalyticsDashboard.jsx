@@ -1,326 +1,619 @@
-import React, {
-    useContext, useMemo, forwardRef, useImperativeHandle,
-} from 'react';
-import { Container } from 'semantic-ui-react';
-import PropTypes from 'prop-types';
-import moment from 'moment';
-import { useDrop } from 'react-dnd-cjs';
-import { useApolloClient } from '@apollo/react-hooks';
-import AnalyticsCard from './AnalyticsCard';
-import conversationLengths from '../../../api/graphql/conversations/queries/conversationLengths.graphql';
-import conversationDurations from '../../../api/graphql/conversations/queries/conversationDurations.graphql';
-import intentFrequencies from '../../../api/graphql/conversations/queries/intentFrequencies.graphql';
-import actionCounts from '../../../api/graphql/conversations/queries/actionCounts.graphql';
-import conversationCounts from '../../../api/graphql/conversations/queries/conversationCounts.graphql';
-import conversationsFunnel from '../../../api/graphql/conversations/queries/conversationsFunnel.graphql';
-import { ProjectContext } from '../../layouts/context';
-import { setsAreIdentical, findName } from '../../../lib/utils';
-import {
-    calculateTemporalBuckets, applyTimezoneOffset, generateXLSX, downloadXLSX,
-} from '../../../lib/graphs';
-import { clearTypenameField } from '../../../lib/client.safe.utils';
+import React from 'react';
 
+// import './bootstrap.min.css';
+// import './icons.min.css';
+// import './app.min.css';
+// import './feather.css';
+// import './style.css';
+import $ from 'jquery';
+import ReactApexChart from 'react-apexcharts';
+import { Options } from 'docker-cli-js';
+// import ApexCharts from 'apexcharts';
+// import ApexCharts from "apexcharts";
+// import Chart from "react-apexcharts";
 
-const AnalyticsDashboard = ({ dashboard, onUpdateDashboard }, ref) => {
-    const {
-        cards,
-        languages,
-        envs,
-    } = dashboard;
+var months = [];
+var user_count = [];
+var user_msgs = [];
 
-    const { projectLanguages } = useContext(ProjectContext);
-    const apolloClient = useApolloClient();
+var series = null;
+var options = null;
 
-    const {
-        project: {
-            _id: projectId, timezoneOffset: projectTimezoneOffset = 0,
-        },
-    } = useContext(ProjectContext);
-    const langs = useMemo(() => (setsAreIdentical(languages, projectLanguages.map(l => l.value))
-        ? [] : languages), [languages]); // empty array if all languages are selected
+$(document).ready(function () {
+    getChats();
+});
 
-    const cardTypes = {
-        conversationLengths: {
-            chartTypeOptions: ['bar', 'pie', 'table'],
-            titleDescription: 'The number of conversations that contain a given number of user utterances.',
-            queryParams: {
-                envs, queryName: 'conversationLengths', langs,
-            },
-            query: conversationLengths,
-            graphParams: {
-                x: 'length',
-                y: { absolute: 'count', relative: 'frequency' },
-                formats: {
-                    length: v => `${v} utterance${v !== 1 ? 's' : ''}`,
-                },
-                axisTitleX: '# Utterances',
-                axisTitleY: 'Conversations',
-            },
-        },
-        conversationDurations: {
-            chartTypeOptions: ['bar', 'pie', 'table'],
-            titleDescription: 'The number of conversations with a given number of seconds elapsed between the first and last message.',
-            queryParams: {
-                envs, queryName: 'conversationDurations', cutoffs: [30, 60, 90, 120, 180], langs,
-            },
-            query: conversationDurations,
-            graphParams: {
-                x: 'duration',
-                y: { absolute: 'count', relative: 'frequency' },
-                formats: {
-                    duration: v => `${v}s`,
-                },
-                axisTitleX: 'Duration (seconds)',
-                axisTitleY: 'Conversations',
-            },
-        },
-        intentFrequencies: {
-            chartTypeOptions: ['bar', 'pie', 'table'],
-            titleDescription: 'The number of user utterances classified as having a given intent.',
-            queryParams: {
-                envs, queryName: 'intentFrequencies', langs, intentTypeFilter: 'utterance',
-            },
-            query: intentFrequencies,
-            graphParams: {
-                x: 'name',
-                y: { absolute: 'count', relative: 'frequency' },
-                axisTitleY: 'Utterances',
-                axisTitleX: 'Intent',
-                noXLegend: true,
-                axisBottom: {
-                    tickRotation: -25,
-                    format: label => `${label.slice(0, 20)}${label.length > 20 ? '...' : ''}`,
-                    legendOffset: 36,
-                    legendPosition: 'middle',
-                },
-                displayConfigs: ['includeIntents', 'excludeIntents', 'limit'],
-            },
-        },
-        triggerFrequencies: {
-            chartTypeOptions: ['bar', 'pie', 'table'],
-            titleDescription: 'The number of user utterances classified as having a given intent.',
-            queryParams: {
-                envs, queryName: 'intentFrequencies', langs, intentTypeFilter: 'trigger',
-            },
-            query: intentFrequencies,
-            graphParams: {
-                x: 'name',
-                y: { absolute: 'count', relative: 'frequency' },
-                axisTitleY: 'Occurrences',
-                axisTitleX: 'Triggered story',
-                noXLegend: true,
-                axisBottom: {
-                    tickRotation: -25,
-                    format: label => `${label.slice(0, 20)}${label.length > 20 ? '...' : ''}`,
-                    legendOffset: 36,
-                    legendPosition: 'middle',
-                },
-                displayConfigs: ['limit'],
-            },
-        },
-        conversationCounts: {
-            chartTypeOptions: ['line', 'bar', 'table'],
-            titleDescription: 'Out of the visits (total number of conversations) in a given temporal window, the conversations that satisfy filters.',
-            queryParams: {
-                temporal: true, envs, queryName: 'conversationCounts', langs,
-            },
-            query: conversationCounts,
-            graphParams: {
-                x: 'bucket',
-                y: { absolute: 'hits', relative: 'proportion' },
-                y2: { absolute: 'count' },
-                formats: {
-                    bucket: v => v.toLocaleDateString(),
-                    count: v => `${v} total`,
-                    hits: v => `${v} matching`,
-                    proportion: v => `${v}%`,
-                },
-                displayAbsoluteRelative: true,
-                axisTitleY: 'Conversations',
-                displayConfigs: ['conversationLength', 'userInitiatedConversations', 'triggerConversations', 'eventFilter'],
-            },
-        },
-        actionCounts: {
-            chartTypeOptions: ['line', 'bar', 'table'],
-            titleDescription: 'Out of all conversational events in a given temporal window, the number of actions occurrences that satisfy filters.',
-            queryParams: {
-                temporal: true, envs, queryName: 'actionCounts', langs,
-            },
-            query: actionCounts,
-            graphParams: {
-                x: 'bucket',
-                y: { absolute: 'hits', relative: 'proportion' },
-                y2: { absolute: 'count' },
-                formats: {
-                    bucket: v => v.toLocaleDateString(),
-                    count: v => `${v} event${v !== 1 ? 's' : ''}`,
-                    hits: v => `${v} occurence${v !== 1 ? 's' : ''}`,
-                    proportion: v => `${v}%`,
-                },
-                displayAbsoluteRelative: true,
-                axisTitleY: 'Action occurrences',
-                displayConfigs: ['includeActions', 'excludeActions'],
-            },
-        },
-        conversationsFunnel: {
-            chartTypeOptions: ['bar'],
-            titleDescription: 'Conversations matching sequence',
-            queryParams: {
-                envs, queryName: 'conversationsFunnel', langs,
-            },
-            query: conversationsFunnel,
-            graphParams: {
-                x: 'name',
-                y: { absolute: 'matchCount', relative: 'proportion' },
-                axisTitleY: 'Matching',
-                axisTitleX: 'Step',
-                noXLegend: false,
-                axisBottom: {
-                    tickRotation: -25,
-                    legendOffset: 36,
-                    legendPosition: 'middle',
-                },
-                formats: {
-                    name: n => n.replace(/_[0-9]+$/, ''),
-                    proportion: v => `${v}%`,
-                },
-                displayAbsoluteRelative: true,
-                displayConfigs: ['selectedSequence'],
-                enableArea: true,
-                xCanRepeat: true,
-                padding: 0,
-                enableLabel: true,
-                label: d => (`${d.value.toFixed(2)}`),
-                colors: (bar) => {
-                    if (bar.data && bar.data.name) {
-                        if (bar.data.name.includes('utter')) return 'rgb(122, 204, 147)';
-                        if (bar.data.name.includes('action')) return 'rgb(239, 171, 208)';
-                    }
-                    return 'rgb(174, 214, 243)';
-                },
-            },
-        
-        },
-    };
+// series = [{
+//     name: 'series',
+//     data: [31, 40, 28, 51, 42, 109, 100]
+// }];
 
-    // 'columns' key required for tables and CSV export
-    Object.keys(cardTypes).forEach((type) => {
-        const {
-            queryParams: { temporal }, graphParams: {
-                x, y, y2, axisTitleX, axisTitleY,
-            },
-        } = cardTypes[type];
-        cardTypes[type].graphParams.columns = [
-            { temporal, accessor: x, header: axisTitleX },
-            { accessor: y.absolute, header: y2 ? `Matching ${axisTitleY.toLowerCase()}` : axisTitleY },
-            ...(y2 ? [{ accessor: y2.absolute, header: `Total ${axisTitleY.toLowerCase()}` }] : []),
-            { accessor: y.relative, header: '%' },
-        ];
-    });
-    
-    const [, drop] = useDrop({ accept: 'card' });
+// options = {
+//     chart: {
+//       height: 350,
+//       type: 'line'
+//     },
+//     dataLabels: {
+//       enabled: false
+//     },
+//     stroke: {
+//       curve: 'smooth'
+//     },
+//     xaxis: {
+//       type: 'datetime',
+//       categories: ["2018-09-19T00:00:00.000Z", "2018-09-19T01:30:00.000Z", "2018-09-19T02:30:00.000Z", "2018-09-19T03:30:00.000Z", "2018-09-19T04:30:00.000Z", "2018-09-19T05:30:00.000Z", "2018-09-19T06:30:00.000Z"]
+//     },
+//     tooltip: {
+//       x: {
+//         format: 'dd/MM/yy HH:mm'
+//       },
+//     },
+//   };
 
-    const handleChangeCardSettings = index => (updateInput, all = false) => {
-        const update = updateInput;
-        if (update.name) update.name = findName(update.name, dashboard.cards.map(c => c.name));
-        onUpdateDashboard({
-            cards: !all // all = true updates all cards
-                ? [
-                    ...cards.slice(0, index),
-                    { ...cards[index], ...update },
-                    ...cards.slice(index + 1),
-                ]
-                : cards.map(card => ({ ...card, ...update })),
-        });
-    };
+export default function Analytics() {
 
-    const handleSwapCards = index => (draggedCardName) => {
-        const draggedCardIndex = cards.findIndex(c => c.name === draggedCardName);
-        const updatedCards = [...cards];
-        updatedCards[index] = cards[draggedCardIndex];
-        updatedCards[draggedCardIndex] = cards[index];
-        onUpdateDashboard({ cards: updatedCards });
-    };
-
-    const downloadAll = async () => {
-        const dataToExport = [];
-        const promises = [];
-        const allQueryParams = [];
-        const allGraphParams = [];
-        const allBuckets = [];
-        const allNames = [];
-        cards.forEach(({
-            startDate, endDate, name, type, ...settings
-        }) => {
-            const { query, queryParams, graphParams } = cardTypes[type];
-            const { nBuckets: nBucketsExport } = calculateTemporalBuckets(moment(startDate), moment(endDate), 'table');
-            const { bucketSize } = calculateTemporalBuckets(moment(startDate), moment(endDate), type);
-
-            const variables = {
-                projectId,
-                envs: [...queryParams.envs, ...(queryParams.envs.includes('development') ? [null] : [])],
-                langs: queryParams.langs,
-                from: applyTimezoneOffset(startDate, projectTimezoneOffset).valueOf() / 1000,
-                to: applyTimezoneOffset(endDate, projectTimezoneOffset).valueOf() / 1000,
-                ...clearTypenameField(settings),
-                nBuckets: nBucketsExport,
-                limit: -1,
-                ...(settings.conversationLength ? { conversationLength: Number(settings.conversationLength) } : { conversationLength: -1 }),
-                ...(queryParams.intentTypeFilter ? { intentTypeFilter: queryParams.intentTypeFilter } : {}),
-            };
-            promises.push(apolloClient.query({ query, variables }).then((response) => {
-                const data = response && response.data;
-                dataToExport.push(data);
-                allQueryParams.push(queryParams);
-                allGraphParams.push(graphParams);
-                allBuckets.push(bucketSize);
-                allNames.push(name);
-            }));
-        });
-        
-        await Promise.all(promises);
-        const workbook = generateXLSX(dataToExport, allQueryParams, allGraphParams, allBuckets, allNames, projectTimezoneOffset);
-        if (window.Cypress) {
-            window.getXLSXData = () => workbook;
-            return null;
-        }
-        return downloadXLSX(workbook);
-    };
-
-    useImperativeHandle(ref, () => ({
-        downloadAll,
-    }));
+    getChats();
 
     return (
-        <div style={{ overflowY: 'auto', height: 'calc(100% - 49px', marginTop: '0' }}>
-            <Container>
-                <div className='analytics-dashboard' ref={drop}>
-                    {cards.map(({
-                        name, type, startDate, endDate, description, ...settings
-                    }, index) => (
-                        <AnalyticsCard
-                            key={name}
-                            cardName={name}
-                            type={type}
-                            {...cardTypes[type]}
-                            titleDescription={description || cardTypes[type].titleDescription}
-                            settings={{ ...settings, startDate: moment(startDate), endDate: moment(endDate) }}
-                            onChangeSettings={handleChangeCardSettings(index)}
-                            onReorder={handleSwapCards(index)}
-                            downloadAll={() => downloadAll()}
-                        />
-                    ))}
+        <div className='page-content'>
+            <div className='container-fluid'>
+                <div className='row'>
+                    <div class='col-md-6 col-xl-3'>
+                        <div class='card'>
+                            <div class='card-body'>
+                                {/* <div class="float-end mt-2">
+                                        </div> */}
+                                <div>
+                                    <h4 class='mb-1 mt-1 text-center'>
+                                        <span data-plugin='counterup'>Today</span>
+                                    </h4>
+                                </div>
+                                <div class='row'>
+                                    <div class='col-md-4'>
+                                        <p class='text-muted mb-0'>
+                                            <i aria-hidden='true' class='user icon'></i>
+                                            Users
+                                        </p>
+                                        <p class='text-muted mt-3 mb-0 '>
+                                            <span
+                                                style={{ color: '#f1b44c', fontSize: 20 }}
+                                                class=' me-1 today-users'
+                                            ></span>
+                                        </p>
+                                    </div>
+                                    <div class='col-md-4 offset-md-4'>
+                                        <p class='text-muted mb-0'>
+                                            <i
+                                                aria-hidden='true'
+                                                class='comment icon'
+                                            ></i>
+                                            Messages
+                                        </p>
+                                        <p class='text-muted mt-3 mb-0 '>
+                                            <span
+                                                style={{ color: '#5b73e8', fontSize: 20 }}
+                                                class=' me-1 today-msgs'
+                                            ></span>
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class='col-md-6 col-xl-3'>
+                        <div class='card' id='analytic-card'>
+                            <div class='card-body'>
+                                <div>
+                                    <h4 class='mb-1 mt-1 text-center'>
+                                        <span data-plugin='counterup'>This Week</span>
+                                    </h4>
+                                </div>
+                                <div class='row'>
+                                    <div class='col-md-4'>
+                                        <p class='text-muted mb-0'>
+                                            <i aria-hidden='true' class='user icon'></i>
+                                            Users
+                                        </p>
+                                        <p class='text-muted mt-3 mb-0 '>
+                                            <span
+                                                style={{ color: '#f1b44c', fontSize: 20 }}
+                                                class=' me-1 this-week-users'
+                                            ></span>
+                                        </p>
+                                    </div>
+                                    <div class='col-md-4 offset-md-4'>
+                                        <p class='text-muted mb-0'>
+                                            <i
+                                                aria-hidden='true'
+                                                class='comment icon'
+                                            ></i>
+                                            Messages
+                                        </p>
+                                        <p class='text-muted mt-3 mb-0 '>
+                                            <span
+                                                style={{ color: '#5b73e8', fontSize: 20 }}
+                                                class=' me-1 this-week-msgs'
+                                            ></span>
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class='col-md-6 col-xl-3'>
+                        <div class='card'>
+                            <div class='card-body'>
+                                <div>
+                                    <h4 class='mb-1 mt-1 text-center'>
+                                        <span data-plugin='counterup'>This Month</span>
+                                    </h4>
+                                </div>
+                                <div class='row'>
+                                    <div class='col-md-4'>
+                                        <p class='text-muted mb-0 '>
+                                            <i aria-hidden='true' class='user icon'></i>
+                                            Users
+                                        </p>
+                                        <p class='text-muted mt-3 mb-0 '>
+                                            <span
+                                                style={{ color: '#f1b44c', fontSize: 20 }}
+                                                class=' me-1 this-month-users'
+                                            ></span>
+                                        </p>
+                                    </div>
+                                    <div class='col-md-4 offset-md-4'>
+                                        <p class='text-muted mb-0'>
+                                            <i
+                                                aria-hidden='true'
+                                                class='comment icon'
+                                            ></i>
+                                            Messages
+                                        </p>
+                                        <p class='text-muted mt-3 mb-0 '>
+                                            <span
+                                                style={{ color: '#5b73e8', fontSize: 20 }}
+                                                class=' me-1 this-month-msgs'
+                                            ></span>
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class='col-md-6 col-xl-3'>
+                        <div class='card'>
+                            <div class='card-body'>
+                                <div>
+                                    <h4 class='mb-1 mt-1 text-center'>
+                                        <span data-plugin='counterup'>This Year</span>
+                                    </h4>
+                                </div>
+                                <div class='row'>
+                                    <div class='col-md-4'>
+                                        <p class='text-muted mb-0'>
+                                            <i aria-hidden='true' class='user icon'></i>
+                                            Users
+                                        </p>
+                                        <p class='text-muted mt-3 mb-0 '>
+                                            <span
+                                                style={{ color: '#f1b44c', fontSize: 20 }}
+                                                class=' me-1 this-year-users'
+                                            ></span>
+                                        </p>
+                                    </div>
+                                    <div class='col-md-4 offset-md-4'>
+                                        <p class='text-muted mb-0'>
+                                            <i
+                                                aria-hidden='true'
+                                                class='comment icon'
+                                            ></i>
+                                            Messages
+                                        </p>
+                                        <p class='text-muted mt-3 mb-0 '>
+                                            <span
+                                                style={{ color: '#5b73e8', fontSize: 20 }}
+                                                class=' me-1 this-year-msgs'
+                                            ></span>
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </Container>
+                <div className='row'>
+                    <div className='col-xl-6'>
+                        <div className='card'>
+                            <div className='card-body'>
+                                <h4 className='card-title mb-4' class='users_chart'>
+                                    Users
+                                </h4>
+                                <div
+                                    id='line_chart_dashed'
+                                    class='users_chart'
+                                    className='apex-charts'
+                                    dir='ltr'
+                                />
+                                {/* <ReactApexChart
+                                    options={options}
+                                    series={series}
+                                    type='line'
+                                    height={350}
+                                /> */}
+                            </div>
+                        </div>
+                    </div>
+                    <div className='col-xl-6'>
+                        <div className='card'>
+                            <div className='card-body'>
+                                <h4 className='card-title mb-4' class='msgs_chart'>
+                                    Messages
+                                </h4>
+                                <div
+                                    id='line_chart_data'
+                                    class='msgs_chart'
+                                    className='apex-charts'
+                                    dir='ltr'
+                                />
+                                {/* <ReactApexChart
+                                    options={options}
+                                    series={series}
+                                    type='line'
+                                    height={350}
+                                /> */}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     );
-};
+}
 
-AnalyticsDashboard.propTypes = {
-    dashboard: PropTypes.object.isRequired,
-    onUpdateDashboard: PropTypes.func.isRequired,
-};
+('use strict');
 
-AnalyticsDashboard.defaultProps = {};
+// get data to fill graph
+function getChats() {
+    $.ajax({
+        url: 'https://belltro.xyz:5072/chats',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        type: 'GET',
+        success: function (data) {
+            months = [];
+            user_count = [];
+            user_msgs = [];
 
-export default forwardRef(AnalyticsDashboard);
+            // Object.keys(data.all_months).forEach(function(key) {
+            //     var month = data.all_months[key];
+            //     months.push(month);
+            //     user_count.push(data.all_months[month].user_count);
+            //     user_msgs.push(data.all_months[month].user_msgs);
+            // });
+            for (var month in data.all_months) {
+                months.push(month);
+                user_count.push(data.all_months[month].user_count);
+                user_msgs.push(data.all_months[month].user_msgs); // insertUserMessage(data[i]['message'], data[i]['time'])
+                // replies = data[i]['replies']
+                // for (const key in replies) {
+                //     insertBotMessage(replies[key]);
+                // }
+            } // $('.message').slice(-1)[0].scrollIntoView({block: "end"});
+
+            $('.today-msgs').text(data.today['user_msgs']);
+            $('.today-users').text(data.today['user_count']);
+            $('.this-week-msgs').text(data.week['user_msgs']);
+            $('.this-week-users').text(data.week['user_count']);
+            $('.this-month-msgs').text(data.this_month['user_msgs']);
+            $('.this-month-users').text(data.this_month['user_count']);
+            $('.this-year-msgs').text(data.this_year['user_msgs']);
+            $('.this-year-users').text(data.this_year['user_count']);
+
+            largestUserCount = user_count[0];
+            smallestUserCount = user_count[0];
+
+            for (i = 0; i < user_count.length; i++) {
+                if (largestUserCount < user_count[i]) {
+                    largestUserCount = user_count[i];
+                }
+
+                if (smallestUserCount > user_count[i]) {
+                    smallestUserCount = user_count[i];
+                }
+            }
+
+            largestUserMsgs = user_msgs[0];
+            smallestUserMsgs = user_msgs[0];
+
+            for (j = 0; j < user_msgs.length; j++) {
+                if (largestUserMsgs < user_msgs[j]) {
+                    largestUserMsgs = user_msgs[j];
+                }
+
+                if (smallestUserMsgs > user_msgs[j]) {
+                    smallestUserMsgs = user_msgs[j];
+                }
+            }
+
+            // Messages Analytics Start Here
+
+            document.getElementById('line_chart_data').innerHTML = '';
+            document.getElementById('line_chart_dashed').innerHTML = '';
+
+            optionsMsgs = {
+                chart: {
+                    height: 380,
+                    type: 'line',
+                    zoom: {
+                        enabled: !1,
+                    },
+                    toolbar: {
+                        show: !1,
+                    },
+                },
+                colors: ['#5b73e8'],
+                dataLabels: {
+                    enabled: !1,
+                },
+                stroke: {
+                    width: [3, 3],
+                    curve: 'straight',
+                },
+                series: [
+                    {
+                        name: 'Year-2020',
+                        data: user_msgs,
+                    },
+                ],
+                grid: {
+                    row: {
+                        colors: ['transparent', 'transparent'],
+                        opacity: 0.2,
+                    },
+                    borderColor: '#f1f1f1',
+                },
+                markers: {
+                    style: 'inverted',
+                    size: 6,
+                },
+                xaxis: {
+                    categories: months,
+                    title: {
+                        text: 'Month',
+                    },
+                },
+                yaxis: {
+                    title: {
+                        text: 'Messages',
+                    },
+                },
+                legend: {
+                    position: 'top',
+                    horizontalAlign: 'right',
+                    floating: !0,
+                    offsetY: -25,
+                    offsetX: -5,
+                },
+                responsive: [
+                    {
+                        breakpoint: 600,
+                        options: {
+                            chart: {
+                                toolbar: {
+                                    show: !1,
+                                },
+                            },
+                            legend: {
+                                show: !1,
+                            },
+                        },
+                    },
+                ],
+            };
+
+            var chart = new ApexCharts(
+                document.querySelector('#line_chart_data'),
+                optionsMsgs
+            );
+            chart.render();
+
+            // Users Analytics Start Here
+
+            optionsUsers = {
+                chart: {
+                    height: 380,
+                    type: 'line',
+                    zoom: {
+                        enabled: !1,
+                    },
+                    toolbar: {
+                        show: !1,
+                    },
+                },
+                colors: ['#f1b44c'],
+                dataLabels: {
+                    enabled: !1,
+                },
+                stroke: {
+                    width: [3, 3],
+                    curve: 'straight',
+                },
+                series: [
+                    {
+                        name: 'Year-2020',
+                        // data: [10,09,20,33,90]
+                        data: user_count,
+                    },
+                ],
+                // title: {
+                //     text: "Page Statistics",
+                //     align: "left"
+                // },
+                grid: {
+                    row: {
+                        colors: ['transparent', 'transparent'],
+                        opacity: 0.2,
+                    },
+                    borderColor: '#f1f1f1',
+                },
+                markers: {
+                    style: 'inverted',
+                    size: 6,
+                },
+                xaxis: {
+                    categories: months,
+                    // categories: ["Apr", "May", "Jun", "Jul", "Aug"],
+                    title: {
+                        text: 'Month',
+                    },
+                },
+                yaxis: {
+                    title: {
+                        text: 'Users',
+                    },
+                },
+                legend: {
+                    position: 'top',
+                    horizontalAlign: 'right',
+                    floating: !0,
+                    offsetY: -25,
+                    offsetX: -5,
+                },
+                responsive: [
+                    {
+                        breakpoint: 600,
+                        options: {
+                            chart: {
+                                toolbar: {
+                                    show: !1,
+                                },
+                            },
+                            legend: {
+                                show: !1,
+                            },
+                        },
+                    },
+                ], // Users Analytics End Here
+            };
+
+            var chart2 = new ApexCharts(
+                document.querySelector('#line_chart_dashed'),
+                optionsUsers
+            );
+            chart2.render();
+
+        },
+        error: function (err) {
+            alert('Something wrong happened on fetching chats!');
+        },
+    });
+}
+
+// setInterval(function () {
+//     getChats();
+// }, 5000);
+
+// analytics
+// function getAnalytics() {
+//     $.ajax({
+//         url: 'https://belltro.xyz:5072/analytics',
+//         headers: {
+//             'Content-Type': 'application/json'
+//         },
+//         type: 'GET',
+//         success: function (data) {
+//             $('.users-analytics').text(data['users'])
+//             $('.messages-analytics').text(data['messages'])
+//             $('.sessions-analytics').text(data['sessions'])
+//             $('.calls-analytics').text('900')
+
+//         },
+//         error: function (err) {
+//             console.log('Something wrong happened on fetching users!')
+//         }
+//     });
+// }
+
+// setInterval(function () {
+//     getChats();
+// }, 5000);
+
+// var options1 = {
+//     series: [{
+//         data: [25, 66, 41, 89, 63, 25, 44, 20, 36, 40, 54]
+//     }],
+//     fill: {
+//         colors: ["#5b73e8"]
+//     },
+//     chart: {
+//         type: "bar",
+//         width: 70,
+//         height: 40,
+//         sparkline: {
+//             enabled: !0
+//         }
+//     },
+//     plotOptions: {
+//         bar: {
+//             columnWidth: "50%"
+//         }
+//     },
+//     labels: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+//     xaxis: {
+//         crosshairs: {
+//             width: 1
+//         }
+//     },
+//     tooltip: {
+//         fixed: {
+//             enabled: !1
+//         },
+//         x: {
+//             show: !1
+//         },
+//         y: {
+//             title: {
+//                 formatter: function(e) {
+//                     return ""
+//                 }
+//             }
+//         },
+//         marker: {
+//             show: !1
+//         }
+//     }
+// },
+// chart = new ApexCharts(document.querySelector("#total-revenue-chart"), options1);
+// chart.render();
+// var options = {
+//     fill: {
+//         colors: ["#34c38f"]
+//     },
+//     series: [70],
+//     chart: {
+//         type: "radialBar",
+//         width: 45,
+//         height: 45,
+//         sparkline: {
+//             enabled: !0
+//         }
+//     },
+//     dataLabels: {
+//         enabled: !1
+//     },
+//     plotOptions: {
+//         radialBar: {
+//             hollow: {
+//                 margin: 0,
+//                 size: "60%"
+//             },
+//             track: {
+//                 margin: 0
+//             },
+//             dataLabels: {
+//                 show: !1
+//             }
+//         }
+//     }
+// }
