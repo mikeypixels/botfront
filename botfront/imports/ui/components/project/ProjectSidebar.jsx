@@ -33,6 +33,11 @@ class ProjectSidebar extends React.Component {
                         <ProjectsDropdown currentProjectId={projectId} onProjectChange={handleChangeProject} />
                     </Menu.Item>
                     <Can I='stories:r' projectId={projectId}>
+                        <Link to={`/project/${projectId}/responses`}>
+                            <Menu.Item name='Conversation' icon='comment' data-cy='dialogue-sidebar-link' />
+                        </Link>
+                    </Can>
+                    <Can I='stories:r' projectId={projectId}>
                         <Link to={`/project/${projectId}/dialogue`}>
                             <Menu.Item name='Dialogue' icon='book' data-cy='dialogue-sidebar-link' />
                         </Link>
