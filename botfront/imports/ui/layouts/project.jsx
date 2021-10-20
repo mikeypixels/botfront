@@ -163,7 +163,7 @@ function Project(props) {
                     </Header>
                 ) : (
                     <Header as='h1' className='logo'>
-                        Botfront.
+                        Belltro.
                     </Header>
                 )}
                 {(settings && settings.settings && settings.settings.public && settings.settings.public.smallLogoUrl) || project.smallLogoUrl ? (
@@ -236,17 +236,17 @@ function Project(props) {
                                     {children}
                                     {!showChat && channel && (
                                         <Popup
-//                                             trigger={(
-//                                                 <Button
-//                                                     size='big'
-//                                                     circular
-//                                                     onClick={() => changeShowChat(!showChat)}
-//                                                     icon='comment'
-//                                                     primary
-//                                                     className='open-chat-button'
-//                                                     data-cy='open-chat'
-//                                                 />
-//                                             )}
+                                            // trigger={(
+                                            //     <Button
+                                            //         size='big'
+                                            //         circular
+                                            //         onClick={() => changeShowChat(!showChat)}
+                                            //         icon='comment'
+                                            //         primary
+                                            //         className='open-chat-button'
+                                            //         data-cy='open-chat'
+                                            //     />
+                                            // )}
                                             content='Try out your chatbot'
                                         />
                                     )}

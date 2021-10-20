@@ -1,0 +1,117 @@
+{"user" : [
+    {
+        "message": "Hey",
+        "time": "2021-08-17 15:32:26",
+        "replies": {
+            "reply1": "Hey!",
+            "reply2": "How are you?"
+        }
+    },
+    {
+        "message": "Hi",
+        "time": "2021-08-17 19:28:50",
+        "replies": {
+            "reply1": "Hey!",
+            "reply2": "How are you?"
+        }
+    },
+    {
+        "message": "Not so good",
+        "time": "2021-08-17 19:29:05",
+        "replies": {
+            "reply1": "Here is something to cheer you up:"
+        }
+    },
+    {
+        "message": "Thanks",
+        "time": "2021-08-17 19:29:14",
+        "replies": {
+            "reply1": "Here is something to cheer you up:"
+        }
+    },
+    {
+        "message": "Thank you 😊",
+        "time": "2021-08-17 19:29:22",
+        "replies": {
+            "reply1": "I am a bot, powered by Rasa."
+        }
+    },
+    {
+        "message": "Owh",
+        "time": "2021-08-17 19:29:33",
+        "replies": {
+            "reply1": "Great, carry on!"
+        }
+    },
+    {
+        "message": "Hey",
+        "time": "2021-08-20 21:43:48",
+        "replies": {
+            "reply1": "Hey!",
+            "reply2": "How are you?"
+        }
+    },
+    {
+        "message": "Good",
+        "time": "2021-08-20 21:43:55",
+        "replies": {
+            "reply1": "Hey!",
+            "reply2": "How are you?"
+        }
+    },
+    {
+        "message": "Hey",
+        "time": "2021-08-20 21:50:39",
+        "replies": {
+            "reply1": "Hey!",
+            "reply2": "How are you?",
+            "reply3": "Hey!",
+            "reply4": "What is your name?"
+        }
+    },
+    {
+        "message": "I am Juma",
+        "time": "2021-08-20 21:57:47",
+        "replies": {
+            "reply1": "Hey, Juma. How are you?"
+        }
+    },
+    {
+        "message": "Hey",
+        "time": "2021-08-21 06:35:14",
+        "replies": {
+            "reply1": "Hey!",
+            "reply2": "What is your name?"
+        }
+    },
+    {
+        "message": "You don't know me? Really?",
+        "time": "2021-08-21 06:35:38",
+        "replies": {
+            "reply1": "Bye"
+        }
+    },
+    {
+        "message": "I am Brother Johnson",
+        "time": "2021-08-21 06:35:59",
+        "replies": {
+            "reply1": "Here is something to cheer you up:"
+        }
+    },
+    {
+        "message": "Hey",
+        "time": "2021-08-21 07:03:06",
+        "replies": {
+            "reply1": "Hey!",
+            "reply2": "What is your name?",
+            "reply3": "Hey!",
+            "reply4": "What is your name?",
+            "reply5": "Hey!",
+            "reply6": "What is your name?",
+            "reply7": "Hey!",
+            "reply8": "What is your name?",
+            "reply9": "Hey!",
+            "reply10": "How are you?"
+        }
+    }
+]}

@@ -52,8 +52,6 @@ $(document).ready(function () {
 
 export default function Analytics() {
 
-    getChats();
-
     return (
         <div className='page-content'>
             <div className='container-fluid'>
@@ -275,12 +273,16 @@ export default function Analytics() {
 // get data to fill graph
 function getChats() {
     $.ajax({
-        url: 'https://belltro.xyz:5072/chats',
+        url: 'http://159.138.169.207:82/analytics',
         headers: {
             'Content-Type': 'application/json',
         },
         type: 'GET',
         success: function (data) {
+            ogmonths = [];
+            oguser_count = [];
+            oguser_msgs = [];
+
             months = [];
             user_count = [];
             user_msgs = [];
@@ -292,14 +294,22 @@ function getChats() {
             //     user_msgs.push(data.all_months[month].user_msgs);
             // });
             for (var month in data.all_months) {
-                months.push(month);
-                user_count.push(data.all_months[month].user_count);
-                user_msgs.push(data.all_months[month].user_msgs); // insertUserMessage(data[i]['message'], data[i]['time'])
+                ogmonths.push(month);
+                oguser_count.push(data.all_months[month].user_count);
+                oguser_msgs.push(data.all_months[month].user_msgs); // insertUserMessage(data[i]['message'], data[i]['time'])
                 // replies = data[i]['replies']
                 // for (const key in replies) {
                 //     insertBotMessage(replies[key]);
                 // }
             } // $('.message').slice(-1)[0].scrollIntoView({block: "end"});
+
+            // alert("-----------------"+data);
+
+            for(var i=ogmonths.length-1; i >= 0 ; i--){
+                months.push(ogmonths[i]);
+                user_count.push(oguser_count[i]);
+                user_msgs.push(oguser_msgs[i]);
+            }
 
             $('.today-msgs').text(data.today['user_msgs']);
             $('.today-users').text(data.today['user_count']);
@@ -362,7 +372,7 @@ function getChats() {
                 },
                 series: [
                     {
-                        name: 'Year-2020',
+                        name: 'Messages',
                         data: user_msgs,
                     },
                 ],
@@ -441,7 +451,7 @@ function getChats() {
                 },
                 series: [
                     {
-                        name: 'Year-2020',
+                        name: 'Users',
                         // data: [10,09,20,33,90]
                         data: user_count,
                     },
@@ -505,14 +515,14 @@ function getChats() {
 
         },
         error: function (err) {
-            alert('Something wrong happened on fetching chats!');
+            alert('Something wrong happened on fetching analytics!');
         },
     });
 }
 
-// setInterval(function () {
-//     getChats();
-// }, 5000);
+setInterval(function () {
+    getChats();
+}, 10000);
 
 // analytics
 // function getAnalytics() {

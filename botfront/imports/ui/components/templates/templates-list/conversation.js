@@ -1,20 +1,7 @@
-function initFingerprintJS() {
-    const fpPromise = FingerprintJS.load()
-    fpPromise
-        .then(fp => fp.get())
-        .then(result => {
-            window.sender_id = result.visitorId
-            console.log(window.sender_id)
-        })
-        .catch(error => console.error(error))
-}
-
-
-
 $(document).ready(function () {
     $('.agent-name').text(JSON.parse(localStorage.getItem('agent'))['name'])
     getUsers()
-    initFingerprintJS()
+    getAgents()
     $('.user-chat').hide()
     $('.chat-leftsidebar').hide()
 });
@@ -124,7 +111,7 @@ function getConversations(userId) {
                 insertUserMessage(data[i]['message'], data[i]['time'])
                 replies = data[i]['replies']
                 for (const key in replies) {
-                    insertBotMessage(replies[key]);
+                    insertBotMessage(replies[key].replace(/\n/g,"</br>"));
                 }
             }
             $('.message').slice(-1)[0].scrollIntoView({block: "end"});
@@ -142,7 +129,7 @@ function insertUserMessage(msg, timeSent){
 
 
 function insertBotMessage(msg){
-    $('<li class="message"><div class="conversation-list"><div class="ctext-wrap"><div class="ctext-wrap-content"><p class="mb-0"> '+msg+' </p></div></div></div></li>').appendTo('.userChats')
+    $('<li class="message"><div class="conversation-list"><div class="ctext-wrap"><div class="ctext-wrap-content"><p class="mb-0"> '+msg.replace(/\n/g,"</br>")+' </p></div></div></div></li>').appendTo('.userChats')
 }
 
 function send(text) {
@@ -153,11 +140,10 @@ function send(text) {
             'Content-Type': 'application/json'
         },
         data: JSON.stringify({
-            "From": sender_id,
+            "From": JSON.parse(localStorage.getItem('agent'))['id'],
             "Body": text
         }),
         success: function (data) {
-            console.log(data)
             processResponse(data)
 
         },
@@ -182,7 +168,7 @@ async function processResponse(data) {
 
 
 function botMessage(msg){
-    $('<li class="message"><div class="conversation-list"><div class="ctext-wrap"><div class="ctext-wrap-content"><p class="mb-0"> '+msg+' </p></div></div></div></li>').appendTo('.userChats')
+    $('<li class="message"><div class="conversation-list"><div class="ctext-wrap"><div class="ctext-wrap-content"><p class="mb-0"> '+msg.replace(/\n/g,"</br>")+' </p></div></div></div></li>').appendTo('.userChats')
 }
 
 

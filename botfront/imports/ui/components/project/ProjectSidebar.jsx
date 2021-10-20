@@ -34,7 +34,7 @@ class ProjectSidebar extends React.Component {
                     </Menu.Item>
                     <Can I='stories:r' projectId={projectId}>
                         <Link to={`/project/${projectId}/responses`}>
-                            <Menu.Item name='Conversation' icon='comment' data-cy='dialogue-sidebar-link' />
+                            <Menu.Item name='Conversations' icon='comment' data-cy='dialogue-sidebar-link' />
                         </Link>
                     </Can>
                     <Can I='stories:r' projectId={projectId}>
@@ -52,11 +52,11 @@ class ProjectSidebar extends React.Component {
                             <Menu.Item name='Incoming' icon='inbox' data-cy='incoming-sidebar-link' />
                         </Link>
                     </Can>
-                    <Can I='responses:r' projectId={projectId}>
+                    {/* <Can I='responses:r' projectId={projectId}>
                         <Link to={`/project/${projectId}/responses`}>
                             <Menu.Item name='Responses' icon='comment' />
                         </Link>
-                    </Can>
+                    </Can> */}
                     <Can I='analytics:r' projectId={projectId}>
                         <Link to={`/project/${projectId}/analytics`}>
                             <Menu.Item name='Analytics' icon='chart line' />
